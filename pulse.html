@@ -1,0 +1,834 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Stethoscope,
+  Moon,
+  Sun,
+  User,
+  UserPlus,
+  CalendarClock,
+  FileText,
+  CreditCard,
+  Search,
+  Trash2,
+  Edit3,
+  Plus,
+  ChevronRight,
+  Phone,
+  Mail,
+  MapPin,
+} from "lucide-react";
+
+// ------------------------------------------------------------
+// PulseBridge HMS — Single-file React app (Tailwind + Framer Motion)
+// Features
+// - Catchy name: PulseBridge HMS
+// - Dark mode toggle (localStorage persistence)
+// - Smooth transitional animations between tabs and UI actions
+// - Minimal, production-lean layout with cards, lists, forms
+// - Demo modules: Dashboard, Patients (CRUD-lite), Appointments, Billing
+// - Client-side state only (no backend) — perfect for a prototype
+// ------------------------------------------------------------
+
+const STORAGE_KEYS = {
+  THEME: "pulsebridge.theme",
+  PATIENTS: "pulsebridge.patients",
+  APPTS: "pulsebridge.appointments",
+  INVOICES: "pulsebridge.invoices",
+};
+
+const demoPatients = [
+  {
+    id: "P-1001",
+    name: "Amina Njoroge",
+    age: 32,
+    gender: "Female",
+    phone: "+254 700 123 456",
+    email: "amina.n@example.com",
+    address: "Westlands, Nairobi",
+    condition: "Asthma",
+    lastVisit: "2025-08-05",
+  },
+  {
+    id: "P-1002",
+    name: "Brian Otieno",
+    age: 44,
+    gender: "Male",
+    phone: "+254 711 222 333",
+    email: "b.otieno@example.com",
+    address: "Nyali, Mombasa",
+    condition: "Hypertension",
+    lastVisit: "2025-08-10",
+  },
+  {
+    id: "P-1003",
+    name: "Cynthia Wairimu",
+    age: 27,
+    gender: "Female",
+    phone: "+254 722 555 777",
+    email: "cynthia.w@example.com",
+    address: "Nakuru CBD",
+    condition: "Prenatal",
+    lastVisit: "2025-07-29",
+  },
+];
+
+const demoAppointments = [
+  {
+    id: "A-9001",
+    patientId: "P-1001",
+    patient: "Amina Njoroge",
+    doctor: "Dr. Mwangi (Pulmonology)",
+    date: "2025-08-25",
+    time: "10:30",
+    status: "Scheduled",
+  },
+  {
+    id: "A-9002",
+    patientId: "P-1002",
+    patient: "Brian Otieno",
+    doctor: "Dr. Patel (Cardiology)",
+    date: "2025-08-26",
+    time: "14:15",
+    status: "Scheduled",
+  },
+  {
+    id: "A-9003",
+    patientId: "P-1003",
+    patient: "Cynthia Wairimu",
+    doctor: "Dr. Achieng (OB/GYN)",
+    date: "2025-08-28",
+    time: "09:00",
+    status: "Confirmed",
+  },
+];
+
+const demoInvoices = [
+  {
+    id: "INV-2025-001",
+    patient: "Amina Njoroge",
+    service: "Spirometry Test",
+    amount: 6500,
+    status: "Unpaid",
+    date: "2025-08-05",
+  },
+  {
+    id: "INV-2025-002",
+    patient: "Brian Otieno",
+    service: "ECG + Consultation",
+    amount: 9800,
+    status: "Paid",
+    date: "2025-08-10",
+  },
+];
+
+const tabs = [
+  { key: "dashboard", label: "Dashboard", icon: Stethoscope },
+  { key: "patients", label: "Patients", icon: User },
+  { key: "appointments", label: "Appointments", icon: CalendarClock },
+  { key: "billing", label: "Billing", icon: CreditCard },
+];
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+};
+
+const pageVariants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.2 } },
+};
+
+function useLocalStorage(key, initial) {
+  const [state, setState] = useState(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : initial;
+    } catch {
+      return initial;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(state));
+    } catch {}
+  }, [key, state]);
+  return [state, setState];
+}
+
+function Header({ dark, onToggleDark, activeTab, onSearch }) {
+  const ActiveIcon = tabs.find((t) => t.key === activeTab)?.icon ?? Stethoscope;
+  return (
+    <div className="sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:supports-[backdrop-filter]:bg-zinc-900/70 bg-white/80 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-sky-400 text-white shadow">
+            <Stethoscope className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-lg font-semibold leading-tight">PulseBridge HMS</div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 -mt-0.5">Care that connects</div>
+          </div>
+          <div className="hidden md:flex items-center gap-2 ml-6 px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs">
+            <ActiveIcon className="w-4 h-4" />
+            <span className="capitalize">{activeTab}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative hidden sm:block">
+            <input
+              onChange={(e) => onSearch?.(e.target.value)}
+              placeholder="Search patients, appts, invoices…"
+              className="pl-9 pr-3 py-2 text-sm rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-transparent focus:border-zinc-300 dark:focus:border-zinc-700 outline-none w-72"
+            />
+            <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          </div>
+          <button
+            onClick={onToggleDark}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            aria-label="Toggle dark mode"
+          >
+            {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            <span className="hidden sm:inline">{dark ? "Light" : "Dark"} mode</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon: Icon, subtitle }) {
+  return (
+    <motion.div variants={cardVariants} className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">{title}</div>
+          <div className="text-2xl font-semibold mt-1">{value}</div>
+          {subtitle && (
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{subtitle}</div>
+          )}
+        </div>
+        <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, hint, actionLabel, onAction }) {
+  return (
+    <div className="border border-dashed rounded-2xl p-8 text-center border-zinc-300 dark:border-zinc-700">
+      <div className="mx-auto w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+        <Icon className="w-6 h-6" />
+      </div>
+      <div className="mt-3 text-lg font-medium">{title}</div>
+      <div className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{hint}</div>
+      {onAction && (
+        <button
+          onClick={onAction}
+          className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm hover:opacity-90"
+        >
+          <Plus className="w-4 h-4" />
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Patients({ patients, setPatients, query }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({
+    id: "",
+    name: "",
+    age: "",
+    gender: "",
+    phone: "",
+    email: "",
+    address: "",
+    condition: "",
+    lastVisit: new Date().toISOString().slice(0, 10),
+  });
+
+  const filtered = useMemo(() => {
+    if (!query) return patients;
+    const q = query.toLowerCase();
+    return patients.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.id.toLowerCase().includes(q) ||
+        p.phone?.toLowerCase().includes(q) ||
+        p.email?.toLowerCase().includes(q)
+    );
+  }, [patients, query]);
+
+  function openNew() {
+    setEditing(null);
+    setForm({
+      id: `P-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: "",
+      age: "",
+      gender: "",
+      phone: "",
+      email: "",
+      address: "",
+      condition: "",
+      lastVisit: new Date().toISOString().slice(0, 10),
+    });
+    setShowForm(true);
+  }
+
+  function openEdit(p) {
+    setEditing(p.id);
+    setForm(p);
+    setShowForm(true);
+  }
+
+  function remove(id) {
+    setPatients((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  function save(e) {
+    e.preventDefault();
+    if (!form.name) return;
+    setPatients((prev) => {
+      const exists = prev.some((p) => p.id === form.id);
+      const next = exists
+        ? prev.map((p) => (p.id === form.id ? form : p))
+        : [{ ...form, age: Number(form.age) || 0 }, ...prev];
+      return next;
+    });
+    setShowForm(false);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
+          {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+        </div>
+        <button
+          onClick={openNew}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm hover:opacity-90"
+        >
+          <UserPlus className="w-4 h-4" /> New patient
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={User}
+          title="No patients yet"
+          hint="Add your first patient to get started."
+          actionLabel="Add patient"
+          onAction={openNew}
+        />
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((p) => (
+            <motion.div
+              key={p.id}
+              layout
+              variants={cardVariants}
+              initial="hidden"
+              animate="show"
+              className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="font-medium">{p.name}</div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">{p.id}</div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openEdit(p)}
+                    className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    aria-label="Edit"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => remove(p.id)}
+                    className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    aria-label="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <Info line icon={User} label="Age" value={String(p.age)} />
+                <Info line label="Gender" value={p.gender} />
+                <Info icon={Phone} label="Phone" value={p.phone} />
+                <Info icon={Mail} label="Email" value={p.email} />
+                <Info icon={MapPin} label="Address" value={p.address} />
+                <Info label="Condition" value={p.condition} />
+              </div>
+              <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+                Last visit: {p.lastVisit}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {showForm && (
+          <Dialog onClose={() => setShowForm(false)}>
+            <motion.form
+              onSubmit={save}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-[min(560px,92vw)]"
+            >
+              <div className="text-lg font-semibold">{editing ? "Edit" : "Add"} patient</div>
+              <div className="grid sm:grid-cols-2 gap-3 mt-4">
+                <Field label="ID">
+                  <input disabled value={form.id} className="input" />
+                </Field>
+                <Field label="Name">
+                  <input
+                    autoFocus
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="input"
+                    placeholder="e.g. Jane Doe"
+                  />
+                </Field>
+                <Field label="Age">
+                  <input
+                    type="number"
+                    value={form.age}
+                    onChange={(e) => setForm({ ...form, age: e.target.value })}
+                    className="input"
+                  />
+                </Field>
+                <Field label="Gender">
+                  <select
+                    value={form.gender}
+                    onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">Select…</option>
+                    <option>Female</option>
+                    <option>Male</option>
+                    <option>Other</option>
+                  </select>
+                </Field>
+                <Field label="Phone">
+                  <input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="input"
+                    placeholder="+254…"
+                  />
+                </Field>
+                <Field label="Email">
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="input"
+                    placeholder="name@example.com"
+                  />
+                </Field>
+                <Field label="Address">
+                  <input
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    className="input"
+                  />
+                </Field>
+                <Field label="Primary condition">
+                  <input
+                    value={form.condition}
+                    onChange={(e) => setForm({ ...form, condition: e.target.value })}
+                    className="input"
+                    placeholder="e.g. Diabetes"
+                  />
+                </Field>
+                <Field label="Last visit">
+                  <input
+                    type="date"
+                    value={form.lastVisit}
+                    onChange={(e) => setForm({ ...form, lastVisit: e.target.value })}
+                    className="input"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button type="button" onClick={() => setShowForm(false)} className="btn ghost">
+                  Cancel
+                </button>
+                <button type="submit" className="btn primary">
+                  Save
+                </button>
+              </div>
+            </motion.form>
+          </Dialog>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Appointments({ appointments, setAppointments, query }) {
+  const filtered = useMemo(() => {
+    if (!query) return appointments;
+    const q = query.toLowerCase();
+    return appointments.filter(
+      (a) =>
+        a.patient.toLowerCase().includes(q) ||
+        a.doctor.toLowerCase().includes(q) ||
+        a.id.toLowerCase().includes(q)
+    );
+  }, [appointments, query]);
+
+  return (
+    <div>
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={CalendarClock}
+          title="No appointments"
+          hint="You have no upcoming appointments matching your search."
+        />
+      ) : (
+        <div className="grid lg:grid-cols-2 gap-4">
+          {filtered.map((a) => (
+            <motion.div
+              key={a.id}
+              variants={cardVariants}
+              initial="hidden"
+              animate="show"
+              className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{a.patient}</div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">{a.id}</div>
+                </div>
+                <div className="text-xs px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                  {a.status}
+                </div>
+              </div>
+              <div className="mt-3 text-sm grid grid-cols-2 gap-2">
+                <Info label="Doctor" value={a.doctor} />
+                <Info label="Date" value={`${a.date} @ ${a.time}`} />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Billing({ invoices, setInvoices, query }) {
+  const filtered = useMemo(() => {
+    if (!query) return invoices;
+    const q = query.toLowerCase();
+    return invoices.filter(
+      (i) =>
+        i.patient.toLowerCase().includes(q) ||
+        i.service.toLowerCase().includes(q) ||
+        i.id.toLowerCase().includes(q)
+    );
+  }, [invoices, query]);
+
+  const total = filtered.reduce((sum, i) => sum + i.amount, 0);
+
+  return (
+    <div>
+      <div className="grid md:grid-cols-3 gap-4 mb-4">
+        <StatCard title="Invoices" value={filtered.length} icon={FileText} />
+        <StatCard title="Total amount" value={`KES ${total.toLocaleString()}`} icon={CreditCard} />
+        <StatCard
+          title="Paid ratio"
+          value={`${Math.round(
+            (filtered.filter((i) => i.status === "Paid").length / (filtered.length || 1)) * 100
+          )}%`}
+          icon={CheckIcon}
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState icon={FileText} title="No invoices" hint="Try adjusting your search." />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+                <th className="py-2">Invoice</th>
+                <th className="py-2">Patient</th>
+                <th className="py-2">Service</th>
+                <th className="py-2">Amount</th>
+                <th className="py-2">Status</th>
+                <th className="py-2">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((i) => (
+                <motion.tr
+                  key={i.id}
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="show"
+                  className="border-b border-zinc-100 dark:border-zinc-800"
+                >
+                  <td className="py-3 font-medium">{i.id}</td>
+                  <td className="py-3">{i.patient}</td>
+                  <td className="py-3">{i.service}</td>
+                  <td className="py-3">KES {i.amount.toLocaleString()}</td>
+                  <td className="py-3">
+                    <span
+                      className={`px-2 py-1 rounded-lg text-xs ${
+                        i.status === "Paid"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                      }`}
+                    >
+                      {i.status}
+                    </span>
+                  </td>
+                  <td className="py-3">{i.date}</td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Dashboard({ patients, appointments, invoices }) {
+  const nextAppt = useMemo(() => {
+    const upcoming = [...appointments].sort((a, b) => (
+      `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)
+    ));
+    return upcoming[0];
+  }, [appointments]);
+
+  const unpaid = invoices.filter((i) => i.status !== "Paid").length;
+
+  return (
+    <div>
+      <motion.div variants={cardVariants} className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-gradient-to-tr from-indigo-50 to-sky-50 dark:from-zinc-900 dark:to-zinc-900">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-2xl font-semibold">Welcome back</div>
+            <div className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+              Here’s a quick look at what needs attention today.
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-zinc-400" />
+        </div>
+      </motion.div>
+
+      <div className="grid md:grid-cols-3 gap-4 mt-4">
+        <StatCard title="Total patients" value={patients.length} icon={User} />
+        <StatCard title="Upcoming appts" value={appointments.length} icon={CalendarClock} />
+        <StatCard title="Unpaid invoices" value={unpaid} icon={CreditCard} />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4 mt-4">
+        <motion.div variants={cardVariants} initial="hidden" animate="show" className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+          <div className="font-medium">Next appointment</div>
+          {nextAppt ? (
+            <div className="mt-3 text-sm grid grid-cols-2 gap-2">
+              <Info label="Patient" value={nextAppt.patient} />
+              <Info label="Doctor" value={nextAppt.doctor} />
+              <Info label="When" value={`${nextAppt.date} @ ${nextAppt.time}`} />
+              <Info label="Status" value={nextAppt.status} />
+            </div>
+          ) : (
+            <div className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">No upcoming appointments.</div>
+          )}
+        </motion.div>
+
+        <motion.div variants={cardVariants} initial="hidden" animate="show" className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+          <div className="font-medium">Quick actions</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className="btn primary"><UserPlus className="w-4 h-4" /> New patient</button>
+            <button className="btn"> <CalendarClock className="w-4 h-4" /> New appointment</button>
+            <button className="btn ghost"> <FileText className="w-4 h-4" /> Create invoice</button>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+function Info({ label, value, icon: Icon, line }) {
+  return (
+    <div className={`flex items-start gap-2 ${line ? "border-b border-zinc-100 dark:border-zinc-800 pb-2" : ""}`}>
+      {Icon && (
+        <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+          <Icon className="w-4 h-4" />
+        </div>
+      )}
+      <div>
+        <div className="text-xs text-zinc-500 dark:text-zinc-400">{label}</div>
+        <div className="text-sm font-medium break-words">{value || "—"}</div>
+      </div>
+    </div>
+  );
+}
+
+function Dialog({ children, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") onClose?.(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-50 grid place-items-center p-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <div
+          className="absolute inset-0 bg-black/30 backdrop-blur"
+          onClick={onClose}
+        />
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function CheckIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5" {...props}>
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+function PillTab({ active, onClick, icon: Icon, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm transition-colors ${
+        active
+          ? "bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-zinc-900 dark:border-white"
+          : "border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+      }`}
+    >
+      {Icon && <Icon className="w-4 h-4" />}
+      {children}
+    </button>
+  );
+}
+
+export default function PulseBridgeHMS() {
+  // THEME
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.THEME);
+    if (saved) return saved === "dark";
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEYS.THEME, dark ? "dark" : "light"); } catch {}
+  }, [dark]);
+
+  // DATA
+  const [patients, setPatients] = useLocalStorage(STORAGE_KEYS.PATIENTS, demoPatients);
+  const [appointments, setAppointments] = useLocalStorage(STORAGE_KEYS.APPTS, demoAppointments);
+  const [invoices, setInvoices] = useLocalStorage(STORAGE_KEYS.INVOICES, demoInvoices);
+
+  const [active, setActive] = useState("dashboard");
+  const [query, setQuery] = useState("");
+
+  const page = useMemo(() => {
+    switch (active) {
+      case "patients":
+        return (
+          <Patients patients={patients} setPatients={setPatients} query={query} />
+        );
+      case "appointments":
+        return (
+          <Appointments
+            appointments={appointments}
+            setAppointments={setAppointments}
+            query={query}
+          />
+        );
+      case "billing":
+        return (
+          <Billing invoices={invoices} setInvoices={setInvoices} query={query} />
+        );
+      default:
+        return (
+          <Dashboard
+            patients={patients}
+            appointments={appointments}
+            invoices={invoices}
+          />
+        );
+    }
+  }, [active, appointments, invoices, patients, query]);
+
+  return (
+    <div className={dark ? "dark" : ""}>
+      <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100">
+        <Header
+          dark={dark}
+          onToggleDark={() => setDark((d) => !d)}
+          activeTab={active}
+          onSearch={setQuery}
+        />
+
+        <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-wrap gap-2">
+            {tabs.map((t) => (
+              <PillTab
+                key={t.key}
+                active={active === t.key}
+                onClick={() => setActive(t.key)}
+                icon={t.icon}
+              >
+                {t.label}
+              </PillTab>
+            ))}
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.section
+              key={active}
+              variants={pageVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="mt-6"
+            >
+              {page}
+            </motion.section>
+          </AnimatePresence>
+        </main>
+
+        <footer className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 text-xs text-zinc-500 dark:text-zinc-400">
+          © {new Date().getFullYear()} PulseBridge HMS — UI prototype for demonstrations only.
+        </footer>
+      </div>
+
+      {/* Tailwind utility shortcuts */}
+      <style>{`
+        .input { @apply w-full px-3 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-transparent focus:border-zinc-300 dark:focus:border-zinc-700 outline-none text-sm; }
+        .btn { @apply inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm; }
+        .btn.primary { @apply bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 border-transparent; }
+        .btn.ghost { @apply bg-transparent; }
+      `}</style>
+    </div>
+  );
+}
